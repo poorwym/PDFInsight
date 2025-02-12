@@ -4,9 +4,16 @@ import os
 from PyPDF2 import PdfReader
 from pdf2image import convert_from_path
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'D:\Tesseract\tesseract.exe'  # 您的tesseract路径
-poppler_path = 'D:\\poppler\\poppler-23.11.0\\Library\\bin'  # 您的poppler路径
+import platform
 
+# 根据操作系统动态设置路径
+if platform.system() == 'Windows':
+    pytesseract.pytesseract.tesseract_cmd = r'vendor/tesseract/tesseract.exe'
+    poppler_path = r'vendor/poppler/bin'
+else:
+    # Linux/Mac下通常通过包管理器安装，直接使用命令名即可
+    pytesseract.pytesseract.tesseract_cmd = 'tesseract'
+    poppler_path = None
 
 #用来下载pdf文件
 def download_pdfs_from_string(string):
@@ -77,7 +84,7 @@ def process_text(text):
 
 
     # 预定义中文标点符号和数字
-    punctuation = '。！？；：.，,、》“)(][〔≤《〕（－'
+    punctuation = '。！？；：.，,、》"())[]〔≤《〕（－'
     chinese_numbers = '一二三四五六七八九十'
 
     # 定义一个处理换行符的函数
@@ -90,7 +97,7 @@ def process_text(text):
         if is_chinese(text[index - 1]) and is_chinese(text[index + 1]):
             return False
         # 如果换行符前是逗号或顿号，则不是有效的换行符
-        elif (text[index - 1] in '.，,、》“)(][〔≤《〕（－') or (text[index + 1] in '.，,、》“)(][〔≤《〕（－'):
+        elif (text[index - 1] in '.，,、》"())[]〔≤《〕（－') or (text[index + 1] in '.，,、》"())[]〔≤《〕（－'):
             return False
         else:
             return True
@@ -113,17 +120,43 @@ def process_text(text):
 
     return new_text
 
-def par_pdf(string):
-    file_paths = download_pdfs_from_string(string)
+def par_pdf_by_path(path, ocr = False):
+    # 如果传入的是字符串，则转换为单元素列表
+    if isinstance(path, str):
+        file_paths = [path]
+    else:
+        file_paths = path
     text_output = ""
     for pdf_path in file_paths:
         # 尝试直接从PDF提取文本
-        text = extract_text_from_pdf(pdf_path)
-        if not text.strip():  # 检查提取的文本是否为空
-            # 如果直接提取失败，使用OCR
-            text =  pdf_to_text_ocr(pdf_path, poppler_path)
+        if not ocr:
+            text = extract_text_from_pdf(pdf_path)
+            if not text.strip():  # 检查提取的文本是否为空
+                # 如果直接提取失败，使用OCR
+                text = pdf_to_text_ocr(pdf_path, poppler_path)
+        else:
+            text = pdf_to_text_ocr(pdf_path, poppler_path)
         text_output += text
         print('Your pdf file is recognized:')
-    return print(process_text(text_output))
+    processed_text = process_text(text_output)
+    print(processed_text)
+    return processed_text
+
+def par_pdf_by_url(string, ocr = True):
+    file_paths = download_pdfs_from_string(string)
+    text_output = ""
+    for pdf_path in file_paths:
+        if not ocr:
+            text = extract_text_from_pdf(pdf_path)
+            if not text.strip():  # 检查提取的文本是否为空
+                # 如果直接提取失败，使用OCR
+                text = pdf_to_text_ocr(pdf_path, poppler_path)
+        else:
+            text = pdf_to_text_ocr(pdf_path, poppler_path)
+        text_output += text
+        print('Your pdf file is recognized:')
+    processed_text = process_text(text_output)
+    print(processed_text)
+    return processed_text
     
     
